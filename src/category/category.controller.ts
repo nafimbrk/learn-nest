@@ -1,34 +1,51 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, NotFoundException, HttpCode, HttpStatus, Put } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { Category } from './entities/category.entity';
+import { FindOneParams } from './dto/find-one.params';
 
 @Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
+  create(@Body() createCategoryDto: CreateCategoryDto): Promise<Category> {
     return this.categoryService.create(createCategoryDto);
   }
 
   @Get()
-  findAll() {
+  async findAll(): Promise<Category[]> {
     return this.categoryService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.categoryService.findOne(+id);
+  async findOne(@Param('id') id: string): Promise<Category> {
+    const category = await this.findOneOrFail(id)
+    return category
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
-    return this.categoryService.update(+id, updateCategoryDto);
+  @Put(':id')
+  async update(@Param() params: FindOneParams, @Body() updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+    const category = await this.findOneOrFail(params.id)
+    return this.categoryService.update(category, updateCategoryDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.categoryService.remove(+id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param() params: FindOneParams) {
+    const category = await this.findOneOrFail(params.id)
+    this.categoryService.remove(category);
   }
+
+
+  private async findOneOrFail(id: string): Promise<Category> {
+          const category = await this.categoryService.findOne(id)
+          if(!category) {
+              throw new NotFoundException()
+          }
+  
+          return category
+      }
+
 }
